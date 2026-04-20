@@ -291,7 +291,12 @@
       const syncToSheets = useCallback(async (data) => {
         setSyncStatus("syncing");
         try {
-          await fetch(GS_URL, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ops:data}) });
+          await fetch(GS_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: {"Content-Type":"application/json"},
+            body: JSON.stringify({ops:data})
+          });
           const now = new Date();
           setLastSync(`${now.getHours()}:${String(now.getMinutes()).padStart(2,"0")}`);
           setSyncStatus("ok");
@@ -301,23 +306,48 @@
       useEffect(() => {
         const load = async () => {
           setLoading(true);
+          const local = localStorage.getItem(STORAGE_KEY);
+          const localOps = local ? JSON.parse(local) : [];
           try {
-            const res = await fetch(GS_URL+"?t="+Date.now());
+            const res = await fetch(GS_URL + "?t=" + Date.now());
             const data = await res.json();
-            if (data.ops && Array.isArray(data.ops)) {
-              setOps(data.ops);
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(data.ops));
-              setSyncStatus("ok"); setLastSync("chargé");
+            if (data.ops && Array.isArray(data.ops) && data.ops.length > 0) {
+              const sheetsMap = {}; data.ops.forEach(o => sheetsMap[o.id] = o);
+              const localMap = {}; localOps.forEach(o => localMap[o.id] = o);
+              const merged = Object.values({...sheetsMap, ...localMap});
+              merged.sort((a,b) => b.id - a.id);
+              setOps(merged);
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+              setSyncStatus("ok"); setLastSync("synchronisé");
+            } else {
+              setOps(localOps);
+              setSyncStatus(localOps.length > 0 ? "ok" : "idle");
             }
           } catch(_) {
-            const local = localStorage.getItem(STORAGE_KEY);
-            if (local) setOps(JSON.parse(local));
-            setSyncStatus("error");
+            setOps(localOps);
+            setSyncStatus(localOps.length > 0 ? "error" : "idle");
           }
           setLoading(false);
         };
         load();
-        const iv = setInterval(load, 30000);
+        // Rafraîchissement toutes les 2 minutes sans écraser les données locales
+        const iv = setInterval(async () => {
+          try {
+            const res = await fetch(GS_URL + "?t=" + Date.now());
+            const data = await res.json();
+            if (data.ops && Array.isArray(data.ops) && data.ops.length > 0) {
+              const local = localStorage.getItem(STORAGE_KEY);
+              const localOps = local ? JSON.parse(local) : [];
+              const sheetsMap = {}; data.ops.forEach(o => sheetsMap[o.id] = o);
+              const localMap = {}; localOps.forEach(o => localMap[o.id] = o);
+              const merged = Object.values({...sheetsMap, ...localMap});
+              merged.sort((a,b) => b.id - a.id);
+              setOps(merged);
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+              setSyncStatus("ok");
+            }
+          } catch(_) {}
+        }, 120000);
         return () => clearInterval(iv);
       }, []);
 
