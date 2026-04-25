@@ -302,6 +302,32 @@
       );
     }
 
+    function mergeOps(sheetsOps, localOps, lastSync) {
+      const sheetsMap = {}; sheetsOps.forEach(o => sheetsMap[o.id] = o);
+      const localMap = {}; localOps.forEach(o => localMap[o.id] = o);
+      // Sheets is master for the list; for shared ops, forward-state booleans win
+      const merged = sheetsOps.map(so => {
+        const lo = localMap[so.id];
+        if (!lo) return so;
+        return { ...so, versé: so.versé||lo.versé, donVersé: so.donVersé||lo.donVersé };
+      });
+      // Keep local-only ops created AFTER last sync (genuine offline adds, not deleted-elsewhere)
+      localOps.filter(o => !sheetsMap[o.id] && o.id > lastSync).forEach(o => merged.push(o));
+      return merged.sort((a,b) => b.id - a.id);
+    }
+
+    function mergeVersements(sheetsV, localV, lastSync) {
+      const sheetsMap = {}; sheetsV.forEach(v => sheetsMap[v.id] = v);
+      const localMap = {}; localV.forEach(v => localMap[v.id] = v);
+      const merged = sheetsV.map(sv => {
+        const lv = localMap[sv.id];
+        if (!lv) return sv;
+        return { ...sv, confirméAhmed: sv.confirméAhmed||lv.confirméAhmed };
+      });
+      localV.filter(v => !sheetsMap[v.id] && v.id > lastSync).forEach(v => merged.push(v));
+      return merged.sort((a,b) => b.id - a.id);
+    }
+
     function VersementsTab({ops, versements, mode, onAddVersement, onConfirmVersement}) {
       const [showForm, setShowForm] = useState(false);
       const [form, setForm] = useState({montant:"", note:"", date:todayStr()});
@@ -408,21 +434,17 @@
             const res = await fetch(GS_URL + "?t=" + Date.now());
             const data = await res.json();
             if (data.ops && Array.isArray(data.ops) && data.ops.length > 0) {
-              const sheetsMap = {}; data.ops.forEach(o => sheetsMap[o.id] = o);
-              const localMap = {}; localOps.forEach(o => localMap[o.id] = o);
-              const merged = Object.values({...sheetsMap, ...localMap});
-              merged.sort((a,b) => b.id - a.id);
+              const lastSync = parseInt(localStorage.getItem("rht-last-sync") || "0");
+              const merged = mergeOps(data.ops, localOps, lastSync);
               setOps(merged);
               localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
               if (data.versements && Array.isArray(data.versements)) {
                 const localVParsed = localV ? JSON.parse(localV) : [];
-                const sheetsVMap = {}; data.versements.forEach(v => sheetsVMap[v.id] = v);
-                const localVMap = {}; localVParsed.forEach(v => localVMap[v.id] = v);
-                const mergedV = Object.values({...sheetsVMap, ...localVMap});
-                mergedV.sort((a,b) => b.id - a.id);
+                const mergedV = mergeVersements(data.versements, localVParsed, lastSync);
                 setVersements(mergedV);
                 localStorage.setItem(VKEY, JSON.stringify(mergedV));
               }
+              localStorage.setItem("rht-last-sync", Date.now().toString());
               setSyncStatus("ok"); setLastSync("synchronisé");
             } else {
               setOps(localOps);
@@ -443,12 +465,11 @@
             if (data.ops && Array.isArray(data.ops) && data.ops.length > 0) {
               const local = localStorage.getItem(STORAGE_KEY);
               const localOps = local ? JSON.parse(local) : [];
-              const sheetsMap = {}; data.ops.forEach(o => sheetsMap[o.id] = o);
-              const localMap = {}; localOps.forEach(o => localMap[o.id] = o);
-              const merged = Object.values({...sheetsMap, ...localMap});
-              merged.sort((a,b) => b.id - a.id);
+              const lastSync = parseInt(localStorage.getItem("rht-last-sync") || "0");
+              const merged = mergeOps(data.ops, localOps, lastSync);
               setOps(merged);
               localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+              localStorage.setItem("rht-last-sync", Date.now().toString());
               setSyncStatus("ok");
             }
           } catch(_) {}
