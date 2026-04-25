@@ -42,7 +42,7 @@
 
     function calc(e) {
       let b = 0;
-      if (e.hasDpf) b += 3000*(e.qty||1);
+      if (e.hasDpf) b += (e.dpfRate||2500)*(e.qty||1);
       if (e.hasFlex) b += Math.round((e.revenue||0)*0.25);
       const d = Math.round(b*0.05);
       return { brut:b, don:d, net:b-d };
@@ -93,7 +93,7 @@
 
     function Form({initial, onSave, onCancel, title}) {
       const [f, setF] = useState(initial);
-      const db = f.hasDpf ? 3000*(f.qty||1) : 0;
+      const db = f.hasDpf ? (f.dpfRate||2500)*(f.qty||1) : 0;
       const fb = f.hasFlex ? Math.round((f.revenue||0)*0.25) : 0;
       const tb = db+fb, tn = Math.round(tb*0.95);
       const ok = f.hasDpf||f.hasFlex;
@@ -112,13 +112,15 @@
             <div style={{background:"#3b82f60a",border:"1px solid #3b82f622",borderRadius:12,padding:"12px 14px",marginBottom:12}}>
               <label style={{color:"#60a5fa",fontSize:12,display:"block",marginBottom:6,fontWeight:600}}>🔵 DPF — Nombre d'opérations</label>
               <input type="number" min="1" value={f.qty} onChange={e=>setF({...f,qty:parseInt(e.target.value)||1})} style={{...iS,border:"1px solid #3b82f644"}} />
-              <div style={{color:"#60a5fa",fontSize:12,marginTop:4}}>{f.qty} × 3 000 DA = <strong>{fDA(db)}</strong></div>
+              <label style={{color:"#60a5fa",fontSize:12,display:"block",marginTop:8,marginBottom:4,fontWeight:600}}>Gain par opération (DA)</label>
+              <input type="number" min="500" step="100" value={f.dpfRate||2500} onChange={e=>setF({...f,dpfRate:parseInt(e.target.value)||2500})} style={{...iS,border:"1px solid #3b82f644"}} />
+              <div style={{color:"#60a5fa",fontSize:12,marginTop:4}}>{f.qty} × {fDA(f.dpfRate||2500)} = <strong>{fDA(db)}</strong></div>
             </div>
           )}
           {f.hasFlex&&(
             <div style={{background:"#10b9810a",border:"1px solid #10b98122",borderRadius:12,padding:"12px 14px",marginBottom:12}}>
               <label style={{color:"#34d399",fontSize:12,display:"block",marginBottom:6,fontWeight:600}}>🟢 Flex — Revenu total atelier (DA)</label>
-              <input type="number" min="0" value={f.revenue} onChange={e=>setF({...f,revenue:parseInt(e.target.value)||0})} style={{...iS,border:"1px solid #10b98144"}} />
+              <input type="number" min="0" value={f.revenue||""} placeholder="0" onChange={e=>setF({...f,revenue:parseInt(e.target.value)||0})} style={{...iS,border:"1px solid #10b98144"}} />
               <div style={{color:"#34d399",fontSize:12,marginTop:4}}>25% × {fDA(f.revenue)} = <strong>{fDA(fb)}</strong></div>
             </div>
           )}
@@ -154,7 +156,7 @@
             <span style={{color:C.muted,fontSize:12}}>{entry.date}</span>
           </div>
           {entry.note&&<div style={{color:C.muted,fontSize:13,marginBottom:8,fontStyle:"italic"}}>🚗 "{entry.note}"</div>}
-          {entry.hasDpf&&<div style={{color:C.muted,fontSize:12,marginBottom:3}}>🔵 DPF : <strong style={{color:"#60a5fa"}}>{entry.qty} op. × 3 000 DA = {fDA(3000*entry.qty)}</strong></div>}
+          {entry.hasDpf&&<div style={{color:C.muted,fontSize:12,marginBottom:3}}>🔵 DPF : <strong style={{color:"#60a5fa"}}>{entry.qty} op. × {fDA(entry.dpfRate||2500)} = {fDA((entry.dpfRate||2500)*entry.qty)}</strong></div>}
           {entry.hasFlex&&<div style={{color:C.muted,fontSize:12,marginBottom:3}}>🟢 Flex : <strong style={{color:"#34d399"}}>25% × {fDA(entry.revenue)} = {fDA(Math.round(entry.revenue*0.25))}</strong></div>}
           <div style={{display:"flex",gap:12,marginTop:10}}>
             <div><div style={{color:C.muted,fontSize:10}}>Brut</div><div style={{color:C.accent,fontWeight:700,fontSize:15}}>{fDA(c.brut)}</div></div>
@@ -222,7 +224,7 @@
           </div>
           <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px",marginBottom:12}}>
             <div style={{color:C.muted,fontSize:12,marginBottom:12}}>Répartition par service</div>
-            {[{label:"🔵 DPF",count:dp.length,net:dp.reduce((s,e)=>s+3000*(e.qty||1)*0.95,0),color:"#60a5fa"},{label:"🟢 Flex",count:fl.length,net:fl.reduce((s,e)=>s+Math.round((e.revenue||0)*0.25*0.95),0),color:"#34d399"},{label:"✦ Combos",count:co.length,net:co.reduce((s,e)=>s+calc(e).net,0),color:"#d8b4fe"}].map(r=>(
+            {[{label:"🔵 DPF",count:dp.length,net:dp.reduce((s,e)=>s+(e.dpfRate||2500)*(e.qty||1)*0.95,0),color:"#60a5fa"},{label:"🟢 Flex",count:fl.length,net:fl.reduce((s,e)=>s+Math.round((e.revenue||0)*0.25*0.95),0),color:"#34d399"},{label:"✦ Combos",count:co.length,net:co.reduce((s,e)=>s+calc(e).net,0),color:"#d8b4fe"}].map(r=>(
               <div key={r.label} style={{marginBottom:10}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{color:r.color,fontSize:12}}>{r.label}</span><span style={{color:C.text,fontSize:12,fontWeight:700}}>{r.count} · {fDA(r.net)}</span></div>
                 <div style={{height:6,background:C.card2,borderRadius:99}}><div style={{height:6,background:r.color,borderRadius:99,width:`${tN>0?Math.round((r.net/tN)*100):0}%`}} /></div>
@@ -263,7 +265,7 @@
           </div>
           <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px",marginBottom:10}}>
             <div style={{color:C.muted,fontSize:12,marginBottom:10}}>Par type de service</div>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{color:"#60a5fa",fontSize:13}}>🔵 DPF Cleaner</span><span style={{color:C.text,fontWeight:700}}>{dp.length} · {fDA(dp.reduce((s,o)=>s+3000*(o.qty||1)*0.95,0))}</span></div>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{color:"#60a5fa",fontSize:13}}>🔵 DPF Cleaner</span><span style={{color:C.text,fontWeight:700}}>{dp.length} · {fDA(dp.reduce((s,o)=>s+(o.dpfRate||2500)*(o.qty||1)*0.95,0))}</span></div>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{color:"#34d399",fontSize:13}}>🟢 Flex Logiciel</span><span style={{color:C.text,fontWeight:700}}>{fl.length} · {fDA(fl.reduce((s,o)=>s+Math.round((o.revenue||0)*0.25*0.95),0))}</span></div>
             <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#d8b4fe",fontSize:13}}>✦ Combos</span><span style={{color:C.text,fontWeight:700}}>{ops.filter(o=>o.hasDpf&&o.hasFlex).length} entrées</span></div>
           </div>
@@ -275,7 +277,7 @@
       );
     }
 
-    const EF = { hasDpf:true, hasFlex:false, qty:1, revenue:0, note:"", date:todayStr() };
+    const EF = { hasDpf:true, hasFlex:false, qty:1, dpfRate:2500, revenue:0, note:"", date:todayStr() };
 
     function App() {
       const [mode, setMode] = useState(null);
@@ -417,7 +419,7 @@
             <div style={{padding:"16px 18px"}}>
               {canEdit&&!showForm&&!editing&&<button onClick={()=>setShowForm(true)} style={{width:"100%",background:C.accent,color:"#0c0e14",border:"none",borderRadius:14,padding:"14px",fontSize:15,fontWeight:700,cursor:"pointer",marginBottom:16}}>+ Ajouter une opération</button>}
               {canEdit&&showForm&&<Form initial={{...EF,date:todayStr()}} title="Nouvelle opération" onSave={addE} onCancel={()=>setShowForm(false)} />}
-              {editing&&<Form initial={{hasDpf:editing.hasDpf,hasFlex:editing.hasFlex,qty:editing.qty||1,revenue:editing.revenue||0,note:editing.note||"",date:editing.date}} title="✏️ Modifier l'opération" onSave={updE} onCancel={()=>setEditing(null)} />}
+              {editing&&<Form initial={{hasDpf:editing.hasDpf,hasFlex:editing.hasFlex,qty:editing.qty||1,dpfRate:editing.dpfRate||2500,revenue:editing.revenue||0,note:editing.note||"",date:editing.date}} title="✏️ Modifier l'opération" onSave={updE} onCancel={()=>setEditing(null)} />}
               {ops.length===0&&!showForm&&<div style={{textAlign:"center",color:C.muted,padding:"40px 0",fontSize:14}}>Aucune opération enregistrée</div>}
               {ops.map(e=><Card key={e.id} entry={e} canEdit={canEdit} onEdit={en=>{setEditing(en);setShowForm(false);}} onDelete={en=>setDeleting(en)} onVersé={marV} />)}
             </div>
