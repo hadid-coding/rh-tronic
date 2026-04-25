@@ -433,8 +433,10 @@
           try {
             const res = await fetch(GS_URL + "?t=" + Date.now());
             const data = await res.json();
-            if (data.ops && Array.isArray(data.ops) && data.ops.length > 0) {
-              const lastSync = parseInt(localStorage.getItem("rht-last-sync") || "0");
+            const lastSync = parseInt(localStorage.getItem("rht-last-sync") || "0");
+            // GS fait autorité si : il a des données OU on a déjà syncé
+            // (vide + lastSync>0 = suppression totale intentionnelle, pas un sheet vierge)
+            if (data.ops && Array.isArray(data.ops) && (data.ops.length > 0 || lastSync > 0)) {
               const merged = mergeOps(data.ops, localOps, lastSync);
               setOps(merged);
               localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
@@ -462,11 +464,11 @@
           try {
             const res = await fetch(GS_URL + "?t=" + Date.now());
             const data = await res.json();
-            if (data.ops && Array.isArray(data.ops) && data.ops.length > 0) {
+            const lSync = parseInt(localStorage.getItem("rht-last-sync") || "0");
+            if (data.ops && Array.isArray(data.ops) && (data.ops.length > 0 || lSync > 0)) {
               const local = localStorage.getItem(STORAGE_KEY);
               const localOps = local ? JSON.parse(local) : [];
-              const lastSync = parseInt(localStorage.getItem("rht-last-sync") || "0");
-              const merged = mergeOps(data.ops, localOps, lastSync);
+              const merged = mergeOps(data.ops, localOps, lSync);
               setOps(merged);
               localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
               localStorage.setItem("rht-last-sync", Date.now().toString());
