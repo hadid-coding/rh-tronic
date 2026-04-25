@@ -28,6 +28,7 @@
 
     const GS_URL = "https://script.google.com/macros/s/AKfycbxueMT4HNHUjbWvpIpKm6RVyNfUvwPWlGIEeE3gEggoBf5fPU6XBTem8mLlgm2izcOuaA/exec";
     const STORAGE_KEY = "rh-tronic-ops-v2";
+    const VKEY = "rht-versements-v1";
 
     const C = {
       bg:"#0c0e14", card:"#161923", card2:"#1e2231", border:"#252d3d",
@@ -44,7 +45,7 @@
       let b = 0;
       if (e.hasDpf) b += (e.dpfRate||2500)*(e.qty||1);
       if (e.hasFlex) b += Math.round((e.revenue||0)*0.25);
-      const d = Math.round(b*0.05);
+      const d = e.donMontant != null ? e.donMontant : Math.round(b*0.05);
       return { brut:b, don:d, net:b-d };
     }
 
@@ -95,7 +96,10 @@
       const [f, setF] = useState(initial);
       const db = f.hasDpf ? (f.dpfRate||2500)*(f.qty||1) : 0;
       const fb = f.hasFlex ? Math.round((f.revenue||0)*0.25) : 0;
-      const tb = db+fb, tn = Math.round(tb*0.95);
+      const tb = db+fb;
+      const defaultDon = Math.round(tb*0.05);
+      const don = f.donMontant != null ? f.donMontant : defaultDon;
+      const tn = tb - don;
       const ok = f.hasDpf||f.hasFlex;
       return (
         <div style={{background:C.card,border:`1px solid ${C.accent}44`,borderRadius:16,padding:18,marginBottom:16}}>
@@ -125,11 +129,20 @@
             </div>
           )}
           {ok&&(
-            <div style={{background:C.card2,borderRadius:12,padding:"10px 14px",marginBottom:12,display:"flex",justifyContent:"space-between"}}>
-              <div><div style={{color:C.muted,fontSize:11}}>Brut</div><div style={{color:C.accent,fontWeight:700,fontSize:16}}>{fDA(tb)}</div></div>
-              <div><div style={{color:C.muted,fontSize:11}}>Don 5%</div><div style={{color:C.don,fontWeight:600,fontSize:16}}>−{fDA(tb-tn)}</div></div>
-              <div><div style={{color:C.muted,fontSize:11}}>Net Ahmed</div><div style={{color:C.success,fontWeight:700,fontSize:16}}>{fDA(tn)}</div></div>
-            </div>
+            <>
+              <div style={{background:C.card2,borderRadius:12,padding:"10px 14px",marginBottom:10,display:"flex",justifyContent:"space-between"}}>
+                <div><div style={{color:C.muted,fontSize:11}}>Brut</div><div style={{color:C.accent,fontWeight:700,fontSize:16}}>{fDA(tb)}</div></div>
+                <div><div style={{color:C.muted,fontSize:11}}>Don{f.donMontant!=null?" ✏️":" 5%"}</div><div style={{color:C.don,fontWeight:600,fontSize:16}}>−{fDA(don)}</div></div>
+                <div><div style={{color:C.muted,fontSize:11}}>Net Ahmed</div><div style={{color:C.success,fontWeight:700,fontSize:16}}>{fDA(tn)}</div></div>
+              </div>
+              <div style={{background:"#ef444408",border:"1px solid #ef444422",borderRadius:12,padding:"10px 14px",marginBottom:12}}>
+                <label style={{color:C.don,fontSize:12,display:"block",marginBottom:4,fontWeight:600}}>🤲 Don personnalisé (DA) <span style={{color:C.muted,fontWeight:400}}>— vide = 5%</span></label>
+                <div style={{display:"flex",gap:8}}>
+                  <input type="number" min="0" value={f.donMontant!=null?f.donMontant:""} placeholder={`${defaultDon} DA (5%)`} onChange={e=>setF({...f,donMontant:e.target.value===''?null:parseInt(e.target.value)||0})} style={{...iS,flex:1,border:"1px solid #ef444433"}} />
+                  {f.donMontant!=null&&<button onClick={()=>setF({...f,donMontant:null})} style={{background:"#ef444418",border:"1px solid #ef444433",color:C.don,borderRadius:10,padding:"0 12px",fontSize:12,cursor:"pointer",fontWeight:700}}>↺ 5%</button>}
+                </div>
+              </div>
+            </>
           )}
           <div style={{marginBottom:12}}>
             <label style={{color:C.muted,fontSize:12,display:"block",marginBottom:6}}>Date</label>
@@ -147,7 +160,7 @@
       );
     }
 
-    function Card({entry, canEdit, onEdit, onDelete, onVersé}) {
+    function Card({entry, canEdit, mode, onEdit, onDelete, onVersé, onDonVersé}) {
       const c = calc(entry);
       return (
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px",marginBottom:10,position:"relative"}}>
@@ -160,13 +173,19 @@
           {entry.hasFlex&&<div style={{color:C.muted,fontSize:12,marginBottom:3}}>🟢 Flex : <strong style={{color:"#34d399"}}>25% × {fDA(entry.revenue)} = {fDA(Math.round(entry.revenue*0.25))}</strong></div>}
           <div style={{display:"flex",gap:12,marginTop:10}}>
             <div><div style={{color:C.muted,fontSize:10}}>Brut</div><div style={{color:C.accent,fontWeight:700,fontSize:15}}>{fDA(c.brut)}</div></div>
-            <div><div style={{color:C.muted,fontSize:10}}>Don 5%</div><div style={{color:C.don,fontWeight:600,fontSize:15}}>−{fDA(c.don)}</div></div>
+            <div><div style={{color:C.muted,fontSize:10}}>Don{entry.donMontant!=null?" ✏️":" 5%"}</div><div style={{color:C.don,fontWeight:600,fontSize:15}}>−{fDA(c.don)}</div></div>
             <div><div style={{color:C.muted,fontSize:10}}>Net</div><div style={{color:C.success,fontWeight:700,fontSize:15}}>{fDA(c.net)}</div></div>
           </div>
-          {entry.versé
-            ? <div style={{marginTop:8,background:"#10b98115",border:"1px solid #10b98133",borderRadius:8,padding:"4px 10px",fontSize:12,color:"#34d399",display:"inline-block"}}>✓ Versé au compte</div>
-            : canEdit&&<button onClick={()=>onVersé(entry.id)} style={{marginTop:8,background:"#10b98115",border:"1px solid #10b98133",color:"#34d399",borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:600,cursor:"pointer"}}>✓ Marquer versé</button>
-          }
+          <div style={{marginTop:8,display:"flex",gap:8,flexWrap:"wrap"}}>
+            {entry.versé
+              ? <div style={{background:"#10b98115",border:"1px solid #10b98133",borderRadius:8,padding:"4px 10px",fontSize:12,color:"#34d399",display:"inline-block"}}>✓ Net versé</div>
+              : canEdit&&<button onClick={()=>onVersé(entry.id)} style={{background:"#10b98115",border:"1px solid #10b98133",color:"#34d399",borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:600,cursor:"pointer"}}>✓ Marquer versé</button>
+            }
+            {entry.donVersé
+              ? <div style={{background:"#ef444415",border:"1px solid #ef444433",borderRadius:8,padding:"4px 10px",fontSize:12,color:C.don,display:"inline-block"}}>🤲 Don versé</div>
+              : canEdit&&mode==="ramzi"&&<button onClick={()=>onDonVersé(entry.id)} style={{background:"#ef444415",border:"1px solid #ef444433",color:C.don,borderRadius:8,padding:"4px 12px",fontSize:12,fontWeight:600,cursor:"pointer"}}>🤲 Marquer don versé</button>
+            }
+          </div>
           {canEdit&&(
             <div style={{position:"absolute",top:10,right:10,display:"flex",gap:4}}>
               <button onClick={()=>onEdit(entry)} style={{background:"#3b82f618",border:"none",color:"#60a5fa",cursor:"pointer",fontSize:15,padding:"5px 8px",borderRadius:8}}>✏️</button>
@@ -193,7 +212,7 @@
       );
     }
 
-    function Stats({ops}) {
+    function Stats({ops, versements=[]}) {
       const [period, setPeriod] = useState("semaine");
       function group(entries, mode) {
         const g={};
@@ -206,7 +225,10 @@
       }
       const gr=group(ops,period), keys=Object.keys(gr).slice(-8);
       const cd=keys.map(k=>({label:k.slice(0,5),value:gr[k].reduce((s,e)=>s+calc(e).net,0)}));
-      const tN=ops.reduce((s,e)=>s+calc(e).net,0), tB=ops.reduce((s,e)=>s+calc(e).brut,0), tD=ops.reduce((s,e)=>s+calc(e).don,0), nV=ops.filter(e=>!e.versé).reduce((s,e)=>s+calc(e).net,0);
+      const tN=ops.reduce((s,e)=>s+calc(e).net,0), tB=ops.reduce((s,e)=>s+calc(e).brut,0), tD=ops.reduce((s,e)=>s+calc(e).don,0);
+      const unversedNet=ops.filter(e=>!e.versé).reduce((s,e)=>s+calc(e).net,0);
+      const confirmedV=versements.filter(v=>v.confirméAhmed).reduce((s,v)=>s+v.montant,0);
+      const nV=Math.max(0,unversedNet-confirmedV);
       const dp=ops.filter(e=>e.hasDpf), fl=ops.filter(e=>e.hasFlex), co=ops.filter(e=>e.hasDpf&&e.hasFlex);
       const moy=keys.length>0?Math.round(cd.reduce((s,d)=>s+d.value,0)/keys.length):0;
       const best=cd.reduce((b,d)=>d.value>(b?.value||0)?d:b,null);
@@ -250,8 +272,11 @@
       );
     }
 
-    function Resume({ops}) {
-      const tB=ops.reduce((s,o)=>s+calc(o).brut,0), tN=ops.reduce((s,o)=>s+calc(o).net,0), tD=ops.reduce((s,o)=>s+calc(o).don,0), nV=ops.filter(o=>!o.versé).reduce((s,o)=>s+calc(o).net,0);
+    function Resume({ops, versements=[]}) {
+      const tB=ops.reduce((s,o)=>s+calc(o).brut,0), tN=ops.reduce((s,o)=>s+calc(o).net,0), tD=ops.reduce((s,o)=>s+calc(o).don,0);
+      const unversedNet=ops.filter(o=>!o.versé).reduce((s,o)=>s+calc(o).net,0);
+      const confirmedV=versements.filter(v=>v.confirméAhmed).reduce((s,v)=>s+v.montant,0);
+      const nV=Math.max(0,unversedNet-confirmedV);
       const dp=ops.filter(o=>o.hasDpf), fl=ops.filter(o=>o.hasFlex);
       return (
         <div style={{padding:"16px 18px"}}>
@@ -277,7 +302,73 @@
       );
     }
 
-    const EF = { hasDpf:true, hasFlex:false, qty:1, dpfRate:2500, revenue:0, note:"", date:todayStr() };
+    function VersementsTab({ops, versements, mode, onAddVersement, onConfirmVersement}) {
+      const [showForm, setShowForm] = useState(false);
+      const [form, setForm] = useState({montant:"", note:"", date:todayStr()});
+      const unversedNet = ops.filter(e=>!e.versé).reduce((s,e)=>s+calc(e).net,0);
+      const confirmedTotal = versements.filter(v=>v.confirméAhmed).reduce((s,v)=>s+v.montant,0);
+      const pendingTotal = versements.filter(v=>!v.confirméAhmed).reduce((s,v)=>s+v.montant,0);
+      const enAttente = Math.max(0, unversedNet - confirmedTotal);
+      const saveVersement = () => {
+        const m = parseInt(form.montant);
+        if (!m||m<=0) return;
+        onAddVersement({id:Date.now(), montant:m, note:form.note, date:form.date, confirméAhmed:false});
+        setShowForm(false);
+        setForm({montant:"", note:"", date:todayStr()});
+      };
+      return (
+        <div style={{padding:"16px 18px"}}>
+          <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px",marginBottom:16}}>
+            <div style={{color:C.muted,fontSize:11,marginBottom:4}}>Restant à verser à Ahmed</div>
+            <div style={{color:"#a78bfa",fontWeight:800,fontSize:26,marginBottom:8}}>{fDA(enAttente)}</div>
+            <div style={{display:"flex",gap:16}}>
+              {confirmedTotal>0&&<div><div style={{color:C.muted,fontSize:10}}>Déjà reçu</div><div style={{color:C.success,fontWeight:700,fontSize:13}}>{fDA(confirmedTotal)}</div></div>}
+              {pendingTotal>0&&<div><div style={{color:C.muted,fontSize:10}}>En attente confirmation</div><div style={{color:"#f59e0b",fontWeight:700,fontSize:13}}>{fDA(pendingTotal)}</div></div>}
+            </div>
+          </div>
+          {mode==="ramzi"&&!showForm&&<button onClick={()=>setShowForm(true)} style={{width:"100%",background:C.accent,color:"#0c0e14",border:"none",borderRadius:14,padding:"14px",fontSize:15,fontWeight:700,cursor:"pointer",marginBottom:16}}>💸 Enregistrer un versement</button>}
+          {mode==="ramzi"&&showForm&&(
+            <div style={{background:C.card,border:`1px solid ${C.accent}44`,borderRadius:16,padding:18,marginBottom:16}}>
+              <div style={{color:C.text,fontWeight:700,marginBottom:14,fontSize:15}}>💸 Nouveau versement à Ahmed</div>
+              <div style={{marginBottom:10}}>
+                <label style={{color:C.muted,fontSize:12,display:"block",marginBottom:6}}>Montant versé (DA)</label>
+                <input type="number" min="1" value={form.montant} onChange={e=>setForm({...form,montant:e.target.value})} style={iS} />
+              </div>
+              <div style={{marginBottom:10}}>
+                <label style={{color:C.muted,fontSize:12,display:"block",marginBottom:6}}>Date</label>
+                <input type="text" value={form.date} onChange={e=>setForm({...form,date:e.target.value})} style={iS} />
+              </div>
+              <div style={{marginBottom:14}}>
+                <label style={{color:C.muted,fontSize:12,display:"block",marginBottom:6}}>Note (optionnel)</label>
+                <input type="text" value={form.note} placeholder="Ex: virement, espèces..." onChange={e=>setForm({...form,note:e.target.value})} style={iS} />
+              </div>
+              <div style={{display:"flex",gap:10}}>
+                <button onClick={()=>setShowForm(false)} style={{flex:1,background:C.bg,border:`1px solid ${C.border}`,color:C.muted,borderRadius:10,padding:"12px",fontSize:14,fontWeight:700,cursor:"pointer"}}>Annuler</button>
+                <button onClick={saveVersement} style={{flex:2,background:C.accent,border:"none",color:"#0c0e14",borderRadius:10,padding:"12px",fontSize:14,fontWeight:700,cursor:"pointer"}}>✓ Enregistrer</button>
+              </div>
+            </div>
+          )}
+          {versements.length===0&&<div style={{textAlign:"center",color:C.muted,padding:"40px 0",fontSize:14}}>Aucun versement enregistré</div>}
+          {[...versements].sort((a,b)=>b.id-a.id).map(v=>(
+            <div key={v.id} style={{background:C.card,border:`1px solid ${v.confirméAhmed?"#10b98133":C.border}`,borderRadius:14,padding:"14px 16px",marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                <div style={{color:C.accent,fontWeight:800,fontSize:18}}>{fDA(v.montant)}</div>
+                <div style={{color:C.muted,fontSize:12}}>{v.date}</div>
+              </div>
+              {v.note&&<div style={{color:C.muted,fontSize:13,marginBottom:8,fontStyle:"italic"}}>"{v.note}"</div>}
+              {v.confirméAhmed
+                ? <div style={{background:"#10b98115",border:"1px solid #10b98133",borderRadius:8,padding:"4px 10px",fontSize:12,color:"#34d399",display:"inline-block"}}>✓ Reçu par Ahmed</div>
+                : mode==="ahmed"
+                  ? <button onClick={()=>onConfirmVersement(v.id)} style={{background:"#10b98115",border:"1px solid #10b98133",color:"#34d399",borderRadius:8,padding:"8px 14px",fontSize:13,fontWeight:700,cursor:"pointer",width:"100%"}}>✓ Confirmer réception</button>
+                  : <div style={{background:"#f59e0b15",border:"1px solid #f59e0b33",borderRadius:8,padding:"4px 10px",fontSize:12,color:"#f59e0b",display:"inline-block"}}>⏳ En attente confirmation Ahmed</div>
+              }
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    const EF = { hasDpf:true, hasFlex:false, qty:1, dpfRate:2500, revenue:0, donMontant:null, note:"", date:todayStr() };
 
     function App() {
       const [mode, setMode] = useState(null);
@@ -289,15 +380,16 @@
       const [syncStatus, setSyncStatus] = useState("idle");
       const [lastSync, setLastSync] = useState(null);
       const [loading, setLoading] = useState(true);
+      const [versements, setVersements] = useState([]);
 
-      const syncToSheets = useCallback(async (data) => {
+      const syncAll = useCallback(async (opsData, versData) => {
         setSyncStatus("syncing");
         try {
           await fetch(GS_URL, {
             method: "POST",
             mode: "no-cors",
             headers: {"Content-Type":"application/json"},
-            body: JSON.stringify({ops:data})
+            body: JSON.stringify({ops:opsData, versements:versData})
           });
           const now = new Date();
           setLastSync(`${now.getHours()}:${String(now.getMinutes()).padStart(2,"0")}`);
@@ -310,6 +402,8 @@
           setLoading(true);
           const local = localStorage.getItem(STORAGE_KEY);
           const localOps = local ? JSON.parse(local) : [];
+          const localV = localStorage.getItem(VKEY);
+          setVersements(localV ? JSON.parse(localV) : []);
           try {
             const res = await fetch(GS_URL + "?t=" + Date.now());
             const data = await res.json();
@@ -320,6 +414,15 @@
               merged.sort((a,b) => b.id - a.id);
               setOps(merged);
               localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+              if (data.versements && Array.isArray(data.versements)) {
+                const localVParsed = localV ? JSON.parse(localV) : [];
+                const sheetsVMap = {}; data.versements.forEach(v => sheetsVMap[v.id] = v);
+                const localVMap = {}; localVParsed.forEach(v => localVMap[v.id] = v);
+                const mergedV = Object.values({...sheetsVMap, ...localVMap});
+                mergedV.sort((a,b) => b.id - a.id);
+                setVersements(mergedV);
+                localStorage.setItem(VKEY, JSON.stringify(mergedV));
+              }
               setSyncStatus("ok"); setLastSync("synchronisé");
             } else {
               setOps(localOps);
@@ -356,7 +459,12 @@
       const save = async (next) => {
         setOps(next);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-        syncToSheets(next);
+        syncAll(next, versements);
+      };
+      const saveV = async (next) => {
+        setVersements(next);
+        localStorage.setItem(VKEY, JSON.stringify(next));
+        syncAll(ops, next);
       };
 
       const canEdit = mode==="ramzi"||mode==="ahmed";
@@ -364,6 +472,9 @@
       const updE = async (f) => { await save(ops.map(o=>o.id===editing.id?{...editing,...f}:o)); setEditing(null); };
       const delE = async () => { await save(ops.filter(o=>o.id!==deleting.id)); setDeleting(null); };
       const marV = async (id) => { await save(ops.map(o=>o.id===id?{...o,versé:true}:o)); };
+      const marDonV = async (id) => { await save(ops.map(o=>o.id===id?{...o,donVersé:true}:o)); };
+      const addVersement = (v) => saveV([v, ...versements]);
+      const confirmVersement = (id) => saveV(versements.map(v=>v.id===id?{...v,confirméAhmed:true}:v));
 
       if (loading) return (
         <div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
@@ -397,7 +508,7 @@
         </div>
       );
 
-      const TABS = [{id:"ops",label:"📋 Ops"},{id:"stats",label:"📊 Stats"},{id:"resume",label:"💰 Résumé"}];
+      const TABS = [{id:"ops",label:"📋 Ops"},{id:"stats",label:"📊 Stats"},{id:"resume",label:"💰 Résumé"},{id:"versements",label:"💸 Vers."}];
 
       return (
         <div style={{minHeight:"100vh",background:C.bg,paddingBottom:80}}>
@@ -409,19 +520,20 @@
             </div>
             <button onClick={()=>{setMode(null);setShowForm(false);setEditing(null);}} style={{background:C.card,border:`1px solid ${C.border}`,color:C.muted,borderRadius:10,padding:"6px 12px",fontSize:12,cursor:"pointer"}}>Changer</button>
           </div>
-          <SyncBar status={syncStatus} lastSync={lastSync} onSync={()=>syncToSheets(ops)} />
+          <SyncBar status={syncStatus} lastSync={lastSync} onSync={()=>syncAll(ops, versements)} />
           <div style={{display:"flex",gap:6,padding:"14px 18px 0"}}>
             {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:"9px 4px",borderRadius:10,border:"none",background:tab===t.id?C.accent:C.card,color:tab===t.id?"#0c0e14":C.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.label}</button>)}
           </div>
-          {tab==="stats"&&<Stats ops={ops} />}
-          {tab==="resume"&&<Resume ops={ops} />}
+          {tab==="stats"&&<Stats ops={ops} versements={versements} />}
+          {tab==="resume"&&<Resume ops={ops} versements={versements} />}
+          {tab==="versements"&&<VersementsTab ops={ops} versements={versements} mode={mode} onAddVersement={addVersement} onConfirmVersement={confirmVersement} />}
           {tab==="ops"&&(
             <div style={{padding:"16px 18px"}}>
               {canEdit&&!showForm&&!editing&&<button onClick={()=>setShowForm(true)} style={{width:"100%",background:C.accent,color:"#0c0e14",border:"none",borderRadius:14,padding:"14px",fontSize:15,fontWeight:700,cursor:"pointer",marginBottom:16}}>+ Ajouter une opération</button>}
               {canEdit&&showForm&&<Form initial={{...EF,date:todayStr()}} title="Nouvelle opération" onSave={addE} onCancel={()=>setShowForm(false)} />}
-              {editing&&<Form initial={{hasDpf:editing.hasDpf,hasFlex:editing.hasFlex,qty:editing.qty||1,dpfRate:editing.dpfRate||2500,revenue:editing.revenue||0,note:editing.note||"",date:editing.date}} title="✏️ Modifier l'opération" onSave={updE} onCancel={()=>setEditing(null)} />}
+              {editing&&<Form initial={{hasDpf:editing.hasDpf,hasFlex:editing.hasFlex,qty:editing.qty||1,dpfRate:editing.dpfRate||2500,revenue:editing.revenue||0,donMontant:editing.donMontant??null,note:editing.note||"",date:editing.date}} title="✏️ Modifier l'opération" onSave={updE} onCancel={()=>setEditing(null)} />}
               {ops.length===0&&!showForm&&<div style={{textAlign:"center",color:C.muted,padding:"40px 0",fontSize:14}}>Aucune opération enregistrée</div>}
-              {ops.map(e=><Card key={e.id} entry={e} canEdit={canEdit} onEdit={en=>{setEditing(en);setShowForm(false);}} onDelete={en=>setDeleting(en)} onVersé={marV} />)}
+              {ops.map(e=><Card key={e.id} entry={e} canEdit={canEdit} mode={mode} onEdit={en=>{setEditing(en);setShowForm(false);}} onDelete={en=>setDeleting(en)} onVersé={marV} onDonVersé={marDonV} />)}
             </div>
           )}
         </div>
