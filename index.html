@@ -552,7 +552,7 @@
               setSyncStatus("ok");
             }
           } catch(_) {}
-        }, 120000);
+        }, 30000);
         return () => clearInterval(iv);
       }, []);
 
@@ -620,7 +620,7 @@
           </div>
           <SyncBar status={syncStatus} lastSync={lastSync} onSync={pullFromGS} />
           <div style={{display:"flex",gap:6,padding:"14px 18px 0"}}>
-            {TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} style={{flex:1,padding:"9px 4px",borderRadius:10,border:"none",background:tab===t.id?C.accent:C.card,color:tab===t.id?"#0c0e14":C.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.label}</button>)}
+            {TABS.map(t=><button key={t.id} onClick={()=>{setTab(t.id);if(t.id==="versements")pullFromGS();}} style={{flex:1,padding:"9px 4px",borderRadius:10,border:"none",background:tab===t.id?C.accent:C.card,color:tab===t.id?"#0c0e14":C.muted,fontWeight:700,fontSize:12,cursor:"pointer"}}>{t.label}</button>)}
           </div>
           {tab==="stats"&&<Stats ops={ops} versements={versements} />}
           {tab==="resume"&&<Resume ops={ops} versements={versements} />}
