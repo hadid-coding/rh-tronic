@@ -1,8 +1,8 @@
-const CACHE = "rh-tronic-v1";
-const ASSETS = ["/", "/index.html", "/manifest.json"];
+const CACHE = "rh-tronic-v2";
+const STATIC = ["/icon-192.png", "/icon-512.png", "/manifest.json"];
 
 self.addEventListener("install", e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(STATIC)));
   self.skipWaiting();
 });
 
@@ -14,14 +14,25 @@ self.addEventListener("activate", e => {
 });
 
 self.addEventListener("fetch", e => {
-  // Ne pas intercepter les appels Google Sheets
   if (e.request.url.includes("script.google.com")) return;
+
+  const url = new URL(e.request.url);
+
+  // HTML / navigation : network first → fallback cache (garantit les mises à jour)
+  if (e.request.mode === "navigate" || url.pathname.endsWith(".html") || url.pathname === "/") {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Icônes / manifest : cache first
   e.respondWith(
     caches.match(e.request).then(cached => cached || fetch(e.request).then(res => {
-      if (res.ok) {
-        const clone = res.clone();
-        caches.open(CACHE).then(c => c.put(e.request, clone));
-      }
+      if (res.ok) caches.open(CACHE).then(c => c.put(e.request, res.clone()));
       return res;
     }))
   );

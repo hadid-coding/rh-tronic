@@ -1,0 +1,16 @@
+{
+  "name": "rh-tronic",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:all": "vitest run && playwright test",
+    "serve": "npx serve . -p 3000"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0",
+    "@playwright/test": "^1.47.0",
+    "serve": "^14.2.0"
+  }
+}
