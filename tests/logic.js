@@ -52,7 +52,7 @@ export function enAttente(ops, versements) {
     .filter(o => !o.versé)
     .reduce((s, o) => s + calc(o).net, 0);
   const confirmedV = versements
-    .filter(v => v.confirméAhmed)
+    .filter(v => v.confirméAhmed && v.type !== "don")
     .reduce((s, v) => s + v.montant, 0);
   return Math.max(0, unversedNet - confirmedV);
 }

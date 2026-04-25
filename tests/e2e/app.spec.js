@@ -84,7 +84,7 @@ test("supprimer une opération", async ({ page }) => {
 // ---------------------------------------------------------------------------
 // Opération : marquer versé et don versé
 // ---------------------------------------------------------------------------
-test("Ramzi peut marquer une opération comme versée", async ({ page }) => {
+test("carte opération — pas de bouton Marquer versé (supprimé)", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem("rh-tronic-ops-v2", JSON.stringify([
       { id: 1000, hasDpf: true, qty: 1, dpfRate: 2500, versé: false, donVersé: false, date: "01/01/2025", note: "" },
@@ -92,30 +92,17 @@ test("Ramzi peut marquer une opération comme versée", async ({ page }) => {
   });
   await page.goto("/");
   await page.getByText("Ramzi").click();
-  await page.getByRole("button", { name: /Marquer versé/ }).click();
-  await expect(page.getByText("✓ Net versé")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Marquer versé/ })).not.toBeVisible();
 });
 
-test("Ramzi voit le bouton Marquer don versé", async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem("rh-tronic-ops-v2", JSON.stringify([
-      { id: 1000, hasDpf: true, qty: 1, dpfRate: 2500, versé: false, donVersé: false, date: "01/01/2025", note: "" },
-    ]));
-  });
-  await page.goto("/");
+test("Ramzi enregistre un versement de don", async ({ page }) => {
   await page.getByText("Ramzi").click();
-  await expect(page.getByText("Marquer don versé")).toBeVisible();
-});
-
-test("Ahmed ne voit pas le bouton Marquer don versé", async ({ page }) => {
-  await page.addInitScript(() => {
-    localStorage.setItem("rh-tronic-ops-v2", JSON.stringify([
-      { id: 1000, hasDpf: true, qty: 1, dpfRate: 2500, versé: false, donVersé: false, date: "01/01/2025", note: "" },
-    ]));
-  });
-  await page.goto("/");
-  await page.getByText("Ahmed").click();
-  await expect(page.getByText("Marquer don versé")).not.toBeVisible();
+  await page.getByRole("button", { name: /Vers/ }).click();
+  await page.getByText("Verser le don").click();
+  await expect(page.getByText(/Versement don/i)).toBeVisible();
+  await page.locator("input[type=number]").first().fill("300");
+  await page.getByText("✓ Enregistrer").click();
+  await expect(page.getByText("300 DA")).toBeVisible();
 });
 
 // ---------------------------------------------------------------------------

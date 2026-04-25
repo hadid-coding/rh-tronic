@@ -24,10 +24,10 @@ function doPost(e) {
     let wv = ss.getSheetByName("Versements");
     if (!wv) wv = ss.insertSheet("Versements");
     wv.clearContents();
-    wv.getRange(1,1,1,5).setValues([["ID","Date","Note","Montant","Confirmé Ahmed"]]);
+    wv.getRange(1,1,1,6).setValues([["ID","Date","Note","Montant","Confirmé Ahmed","Type"]]);
     if (data.versements && data.versements.length > 0) {
-      const vrows = data.versements.map(v => [v.id, v.date, v.note||"", v.montant, v.confirméAhmed?"Oui":"Non"]);
-      wv.getRange(2,1,vrows.length,5).setValues(vrows);
+      const vrows = data.versements.map(v => [v.id, v.date, v.note||"", v.montant, v.confirméAhmed?"Oui":"Non", v.type||"gain"]);
+      wv.getRange(2,1,vrows.length,6).setValues(vrows);
     }
 
     return ContentService.createTextOutput(JSON.stringify({status:"ok"}))
@@ -61,9 +61,9 @@ function doGet(e) {
   const wv = ss.getSheetByName("Versements");
   let versements = [];
   if (wv && wv.getLastRow() >= 2) {
-    const vrows = wv.getRange(2,1,wv.getLastRow()-1,5).getValues();
+    const vrows = wv.getRange(2,1,wv.getLastRow()-1,6).getValues();
     versements = vrows.filter(r=>r[0]).map(r=>({
-      id:r[0], date:r[1], note:r[2], montant:r[3], confirméAhmed:r[4]==="Oui"
+      id:r[0], date:r[1], note:r[2], montant:r[3], confirméAhmed:r[4]==="Oui", type:r[5]||"gain"
     }));
   }
 

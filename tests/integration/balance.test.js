@@ -89,6 +89,29 @@ describe("enAttente() — combinaisons DPF + Flex + versements", () => {
   });
 });
 
+describe("enAttente() — versements de type don exclus du solde", () => {
+  it("versement de type don confirmé ne déduit pas du solde gain", () => {
+    const ops = [dpf(1)]; // net 2375
+    const vers = [{ id: 10, montant: 1000, confirméAhmed: true, type: "don" }];
+    expect(enAttente(ops, vers)).toBe(2375); // don ignoré
+  });
+
+  it("versement de type gain confirmé déduit normalement", () => {
+    const ops = [dpf(1)]; // net 2375
+    const vers = [{ id: 10, montant: 1000, confirméAhmed: true, type: "gain" }];
+    expect(enAttente(ops, vers)).toBe(1375);
+  });
+
+  it("mix don et gain — seul le gain déduit", () => {
+    const ops = [dpf(1, 2)]; // net 4750
+    const vers = [
+      { id: 10, montant: 2000, confirméAhmed: true, type: "gain" },
+      { id: 11, montant: 500, confirméAhmed: true, type: "don" },
+    ];
+    expect(enAttente(ops, vers)).toBe(2750); // 4750 - 2000
+  });
+});
+
 describe("calc() — cohérence brut/don/net", () => {
   it("brut = don + net pour tout dpfRate", () => {
     [1000, 2500, 3000, 5000].forEach(rate => {
