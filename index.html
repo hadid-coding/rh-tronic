@@ -222,11 +222,12 @@
       const dp=ops.filter(e=>e.hasDpf), fl=ops.filter(e=>e.hasFlex), co=ops.filter(e=>e.hasDpf&&e.hasFlex);
       const moy=keys.length>0?Math.round(cd.reduce((s,d)=>s+d.value,0)/keys.length):0;
       const best=cd.reduce((b,d)=>d.value>(b?.value||0)?d:b,null);
-      const versed=ops.filter(e=>e.versé).sort((a,b)=>b.id-a.id);
+      const donVersé=versements.filter(v=>v.type==="don").reduce((s,v)=>s+v.montant,0);
+      const gainVersements=versements.filter(v=>v.type!=="don").sort((a,b)=>b.id-a.id);
       return (
         <div style={{padding:"16px 18px"}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
-            {[{label:"Revenu net total",value:fDA(tN),color:C.success,icon:"💰"},{label:"En attente",value:fDA(nV),color:"#a78bfa",icon:"⏳"},{label:"Total brut",value:fDA(tB),color:C.accent,icon:"📈"},{label:"Dons versés",value:fDA(tD),color:C.don,icon:"🤲"}].map(s=>(
+            {[{label:"Revenu net total",value:fDA(tN),color:C.success,icon:"💰"},{label:"En attente",value:fDA(nV),color:"#a78bfa",icon:"⏳"},{label:"Total brut",value:fDA(tB),color:C.accent,icon:"📈"},{label:"Don versé asso.",value:fDA(donVersé),color:C.don,icon:"🤲"}].map(s=>(
               <div key={s.label} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"12px 14px"}}>
                 <div style={{fontSize:18,marginBottom:4}}>{s.icon}</div>
                 <div style={{color:C.muted,fontSize:10,marginBottom:2}}>{s.label}</div>
@@ -254,9 +255,20 @@
             :<div style={{color:C.muted,textAlign:"center",padding:"20px 0",fontSize:13}}>Pas encore de données</div>}
           </div>
           <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px"}}>
-            <div style={{color:C.muted,fontSize:12,marginBottom:10}}>Historique des versements</div>
-            {versed.length===0?<div style={{color:C.muted,fontSize:13,textAlign:"center",padding:"10px 0"}}>Aucun versement</div>:versed.map(e=>{const c=calc(e);return(<div key={e.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}`}}><div><div style={{color:C.text,fontSize:13,fontWeight:600}}>{fDA(c.net)}</div><div style={{color:C.muted,fontSize:11}}>{e.date}{e.note?" · "+e.note:""}</div></div><div style={{color:"#34d399",fontSize:11,fontWeight:700}}>✓ Versé</div></div>);})}
-            {versed.length>0&&<div style={{marginTop:10,display:"flex",justifyContent:"space-between"}}><span style={{color:C.muted,fontSize:12}}>Total versé</span><span style={{color:C.success,fontWeight:800,fontSize:14}}>{fDA(versed.reduce((s,e)=>s+calc(e).net,0))}</span></div>}
+            <div style={{color:C.muted,fontSize:12,marginBottom:10}}>Versements à Ahmed</div>
+            {gainVersements.length===0
+              ?<div style={{color:C.muted,fontSize:13,textAlign:"center",padding:"10px 0"}}>Aucun versement</div>
+              :gainVersements.map(v=>(
+                <div key={v.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}`}}>
+                  <div>
+                    <div style={{color:C.text,fontSize:13,fontWeight:600}}>{fDA(v.montant)}</div>
+                    <div style={{color:C.muted,fontSize:11}}>{v.date}{v.note?" · "+v.note:""}</div>
+                  </div>
+                  <div style={{color:v.confirméAhmed?"#34d399":C.muted,fontSize:11,fontWeight:700}}>{v.confirméAhmed?"✓ Reçu":"⏳ En attente"}</div>
+                </div>
+              ))
+            }
+            {gainVersements.length>0&&<div style={{marginTop:10,display:"flex",justifyContent:"space-between"}}><span style={{color:C.muted,fontSize:12}}>Total versé à Ahmed</span><span style={{color:C.success,fontWeight:800,fontSize:14}}>{fDA(gainVersements.reduce((s,v)=>s+v.montant,0))}</span></div>}
           </div>
         </div>
       );
@@ -267,6 +279,8 @@
       const unversedNet=ops.filter(o=>!o.versé).reduce((s,o)=>s+calc(o).net,0);
       const confirmedV=versements.filter(v=>v.confirméAhmed&&v.type!=="don").reduce((s,v)=>s+v.montant,0);
       const nV=Math.max(0,unversedNet-confirmedV);
+      const donVersé=versements.filter(v=>v.type==="don").reduce((s,v)=>s+v.montant,0);
+      const donRestant=Math.max(0,tD-donVersé);
       const dp=ops.filter(o=>o.hasDpf), fl=ops.filter(o=>o.hasFlex);
       return (
         <div style={{padding:"16px 18px"}}>
@@ -283,6 +297,14 @@
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{color:"#60a5fa",fontSize:13}}>🔵 DPF Cleaner</span><span style={{color:C.text,fontWeight:700}}>{dp.length} · {fDA(dp.reduce((s,o)=>s+(o.dpfRate||2500)*(o.qty||1)*0.95,0))}</span></div>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><span style={{color:"#34d399",fontSize:13}}>🟢 Flex Logiciel</span><span style={{color:C.text,fontWeight:700}}>{fl.length} · {fDA(fl.reduce((s,o)=>s+Math.round((o.revenue||0)*0.25*0.95),0))}</span></div>
             <div style={{display:"flex",justifyContent:"space-between"}}><span style={{color:"#d8b4fe",fontSize:13}}>✦ Combos</span><span style={{color:C.text,fontWeight:700}}>{ops.filter(o=>o.hasDpf&&o.hasFlex).length} entrées</span></div>
+          </div>
+          <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px",marginBottom:10}}>
+            <div style={{color:C.muted,fontSize:12,marginBottom:8}}>Don à l'association</div>
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+              <div><div style={{color:C.muted,fontSize:10,marginBottom:2}}>Total dons</div><div style={{color:C.don,fontWeight:700,fontSize:14}}>{fDA(tD)}</div></div>
+              <div><div style={{color:C.muted,fontSize:10,marginBottom:2}}>Versé</div><div style={{color:C.success,fontWeight:700,fontSize:14}}>{fDA(donVersé)}</div></div>
+              <div><div style={{color:C.muted,fontSize:10,marginBottom:2}}>Restant</div><div style={{color:"#a78bfa",fontWeight:700,fontSize:14}}>{fDA(donRestant)}</div></div>
+            </div>
           </div>
           <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"14px 16px"}}>
             <div style={{color:C.muted,fontSize:12,marginBottom:4}}>Total entrées</div>
@@ -507,7 +529,7 @@
           setLoading(false);
         };
         load();
-        // Rafraîchissement toutes les 2 minutes sans écraser les données locales
+        // Rafraîchissement toutes les 2 minutes — ops ET versements
         const iv = setInterval(async () => {
           try {
             const res = await fetch(GS_URL + "?t=" + Date.now());
@@ -519,6 +541,13 @@
               const merged = mergeOps(data.ops, localOps, lSync);
               setOps(merged);
               localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+              if (data.versements && Array.isArray(data.versements)) {
+                const localV = localStorage.getItem(VKEY);
+                const localVParsed = localV ? JSON.parse(localV) : [];
+                const mergedV = mergeVersements(data.versements, localVParsed, lSync);
+                setVersements(mergedV);
+                localStorage.setItem(VKEY, JSON.stringify(mergedV));
+              }
               localStorage.setItem("rht-last-sync", Date.now().toString());
               setSyncStatus("ok");
             }
